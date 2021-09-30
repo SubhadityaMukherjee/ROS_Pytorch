@@ -88,6 +88,14 @@ else:
     print("The selected network has not been implemented yet -- please choose another network!")
     exit() 
 
+def feature_find(x_r,encoder):
+    x_r = torch.unsqueeze(x_r, 0)
+    encoder.eval()
+    feature = encoder(x_r)
+    feature = torch.squeeze(feature, 0)
+    encoder.train()
+    return feature
+
 
 tmp_img = 0
 
@@ -173,21 +181,19 @@ def handle_deep_representation(req):
         # print(x_r.shape)
         # exit()
         x_r = preprocess(x_r)
-        x_r = torch.unsqueeze(x_r, 0)
-        encoder.eval()
-        feature = encoder(x_r).squeeze(0)
-        encoder.train()
-        print(feature.shape)
+        feature = feature_find(x_r=x_r, encoder=encoder)
                 
         # pooling functions
+        feature = torch.tensor(feature)
         if (i == 0):
-            global_object_representation = feature            
+            global_object_representation = torch.tensor(feature)
         elif (pooling_function == "MAX"):
-            global_object_representation = np.max([global_object_representation, feature], axis=0)
+            global_object_representation = torch.max(torch.tensor(global_object_representation), feature)
         elif (pooling_function == "AVG"):
-            global_object_representation = np.average([global_object_representation, feature], axis=0)
+            global_object_representation = torch.average([global_object_representation, feature], axis=0)
         elif (pooling_function == "APP"):
-            global_object_representation = np.append(global_object_representation, feature, axis=1)
+            global_object_representation = torch.append(global_object_representation, feature, axis=1)
+        
 
 
     ### deep feature vector of rgb and depth imgaes
@@ -213,34 +219,37 @@ def handle_deep_representation(req):
         # with graph.as_default():
         #     with session.as_default():    
         x_rgb = np.array(resized_rgb_img)
-        x_rgb = np.expand_dims(x_rgb, axis=0)
-        x_rgb = Image.fromarray(x_rgb)
+        # x_rgb = np.expand_dims(x_rgb, axis=0)
+        # x_rgb = Image.fromarray(x_rgb)
         x_rgb = preprocess(x_rgb)
-        feature = encoder.predict(x_rgb)
+        feature = feature_find(x_r=x_rgb, encoder=encoder)
             
         # pooling functions # size of feature can be check first and then do this part
         if (pooling_function == "MAX"):
-            global_object_representation = np.max([global_object_representation, feature], axis=0)
+            # global_object_representation = torch.max([global_object_representation, feature], axis=0)
+
+            global_object_representation = torch.max(torch.tensor(global_object_representation), feature)
         elif (pooling_function == "AVG"):
-            global_object_representation = np.average([global_object_representation, feature], axis=0)
+            global_object_representation = torch.average([global_object_representation, feature], axis=0)
         elif (pooling_function == "APP"):
-            global_object_representation = np.append(global_object_representation, feature, axis=1)
+            global_object_representation = torch.append(global_object_representation, feature, axis=1)
 
         #### encode Depth image
         x_depth = np.array(resized_depth_img)
-        x_depth = np.expand_dims(x_depth, axis=0)
-        x_depth = Image.fromarray(x_depth)
+        # x_depth = np.expand_dims(x_depth, axis=0)
         x_depth = preprocess(x_depth)
-        feature = encoder.predict(x_depth)
+        feature = feature_find(x_r=x_depth, encoder=encoder)
             
         # pooling functions # size of feature can be check first and then do this part
         if (pooling_function == "MAX"):
-            global_object_representation = np.max([global_object_representation, feature], axis=0)
-        elif (pooling_function == "AVG"):
-            global_object_representation = np.average([global_object_representation, feature], axis=0)
-        elif (pooling_function == "APP"):
-            global_object_representation = np.append(global_object_representation, feature, axis=1)
+            # global_object_representation = torch.max([global_object_representation, feature], axis=0)
 
+            global_object_representation = torch.max(torch.tensor(global_object_representation), feature)
+        elif (pooling_function == "AVG"):
+            global_object_representation = torch.average([global_object_representation, feature], axis=0)
+        elif (pooling_function == "APP"):
+            global_object_representation = torch.append(global_object_representation, feature, axis=1)
+        
     except CvBridgeError as e:
         print(e)
         print ("error visualize image")
@@ -250,7 +259,8 @@ def handle_deep_representation(req):
     # print ("\t - size of representation is "+ str(global_object_representation.shape))
     # print ("\t - deep object representation took " + str (toc_global - tic_global))
     # print ("----------------------------------------------------------")            
-    return deep_representationResponse(global_object_representation[0])
+    # print(np.array(global_object_representation)
+    return deep_representationResponse(global_object_representation.detach().numpy())
 
 
 def RGBD_multiview_service():
