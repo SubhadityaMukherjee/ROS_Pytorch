@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-from cv_bridge import CvBridge, CvBridgeError
+# from cv_bridge import CvBridge, CvBridgeError
 
 import torch.optim as optim
 import torch
@@ -33,12 +33,13 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset, TensorDataset, DataLoader
 
 import torchvision
+import torchvision.transforms as T
 from torchvision.datasets import ImageFolder
 from torchvision import datasets, transforms
 
 from PIL import Image
 
-from pytictoc import TicToc
+# from pytictoc import TicToc
 import time
 
 # this is needed to get rid of cpu warning AUX
@@ -80,17 +81,13 @@ recognition_network = "MobileNet"
 
 # Load the Network.
     ### create the network model for object recognition part
-if (base_network == "vgg16_fc1"):
-    vgg_model = vgg16.VGG16(weights='imagenet', include_top=True)
-    encoder = Model(inputs=vgg_model.input, outputs=vgg_model.get_layer('fc1').output)
-    #vgg_model._make_predict_function()
-    #plot_model(vgg_model, to_file='model.png')
-    # print(vgg_model.summary())
+if (base_network == "resnet50"):
+    vgg_model = torchvision.models.resnet50(pretrained=True)
+    encoder = vgg_model.fc
 else:
     print("The selected network has not been implemented yet -- please choose another network!")
     exit() 
 
-              
 
 tmp_img = 0
 
@@ -149,6 +146,16 @@ def handle_deep_representation(req):
     tic = time.clock()
     tic_global = time.clock()
 
+    preprocess = T.Compose([
+        T.Resize(256),
+        T.CenterCrop(224),
+        T.ToTensor(),
+        T.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ])
+
     ### deep feature vector of orthographic projections
     for i in range(0, number_of_views):
         
@@ -159,18 +166,14 @@ def handle_deep_representation(req):
 
         resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
 
-        with graph.as_default():
-            with session.as_default():
-                ## We represent each image as a feature vector
-                ##TODO: image_size should be a param, some networks accept 300*300 input image
-                image_size = 224
-                resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
+        image_size = 224
+        resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
 
-                img_g = cv2.merge((othographic_image, othographic_image, othographic_image))
-                x_r = image.img_to_array(img_g)
-                x_r = np.expand_dims(x_r, axis=0)
-                x_r = preprocess_input(x_r)
-                feature = encoder.predict(x_r)          
+        img_g = cv2.merge((othographic_image, othographic_image, othographic_image))
+        x_r = np.asarray(img_g)
+        x_r = np.expand_dims(x_r, axis=0)
+        x_r = preprocess(x_r)
+        feature = encoder.predict(x_r)          
                 
         # pooling functions
         if (i == 0):
@@ -203,12 +206,12 @@ def handle_deep_representation(req):
             cv2.waitKey(1)
 
         #### encode RGB image
-        with graph.as_default():
-            with session.as_default():    
-                x_rgb = image.img_to_array(resized_rgb_img)
-                x_rgb = np.expand_dims(x_rgb, axis=0)
-                x_rgb = preprocess_input(x_rgb)
-                feature = encoder.predict(x_rgb)
+        # with graph.as_default():
+        #     with session.as_default():    
+        x_rgb = np.array(resized_rgb_img)
+        x_rgb = np.expand_dims(x_rgb, axis=0)
+        x_rgb = preprocess(x_rgb)
+        feature = encoder.predict(x_rgb)
             
         # pooling functions # size of feature can be check first and then do this part
         if (pooling_function == "MAX"):
@@ -219,12 +222,10 @@ def handle_deep_representation(req):
             global_object_representation = np.append(global_object_representation, feature, axis=1)
 
         #### encode Depth image
-        with graph.as_default():
-            with session.as_default():          
-                x_depth = image.img_to_array(resized_depth_img)
-                x_depth = np.expand_dims(x_depth, axis=0)
-                x_depth = preprocess_input(x_depth)
-                feature = encoder.predict(x_depth)
+        x_depth = np.array(resized_depth_img)
+        x_depth = np.expand_dims(x_depth, axis=0)
+        x_depth = preprocess(x_depth)
+        feature = encoder.predict(x_depth)
             
         # pooling functions # size of feature can be check first and then do this part
         if (pooling_function == "MAX"):
@@ -249,7 +250,7 @@ def handle_deep_representation(req):
 def RGBD_multiview_service():
     rospy.init_node('deep_learning_representation_server')
     s = rospy.Service('RGBD_multiview_service', deep_representation, handle_deep_representation)
-    print "Ready to representas RGBD object based on " + base_network + " network."
+    print("Ready to representas RGBD object based on " + base_network + " network.")
     rospy.spin()
 
 if __name__ == "__main__":
