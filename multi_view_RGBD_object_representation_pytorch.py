@@ -5,13 +5,6 @@
 #|           IMPORTS               |
 #|_________________________________|
 
-'''
-#TODO
-- change all the pooling to torch style
-- add the rest of the models 
-- add more models
-'''
-
 ### general
 import roslib; #roslib.load_manifest('rug_deep_feature_extraction')
 import rospy
@@ -32,25 +25,28 @@ warnings.filterwarnings("ignore")
 
 from cv_bridge import CvBridge, CvBridgeError
 
-import torch.optim as optim
-import torch
-from torch import nn
-from torch.utils.data import DataLoader, random_split
-from torch.nn import functional as F
-from torch.utils.data import Dataset, TensorDataset, DataLoader
+import tensorflow as tf
+from tensorflow import keras
+from keras.applications import *
+#from keras.applications.mobilenet import MobileNet
+from keras.preprocessing import image
+from keras.applications.mobilenet import preprocess_input
+from keras.models import Model
+from tensorflow.keras import layers
+from keras import backend as K
+from keras.utils import plot_model
 
-import torchvision
-import torchvision.transforms as T
-from torchvision.datasets import ImageFolder
-from torchvision import datasets, transforms
+tf.config.optimizer.set_jit(True)
 
-from PIL import Image
-
-# from pytictoc import TicToc
+from pytictoc import TicToc
 import time
 
 # this is needed to get rid of cpu warning AUX
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+from tensorflow import Graph, Session
+from tensorflow.keras.models import load_model
 
 np.set_printoptions(threshold=sys.maxsize)
 np.set_printoptions(threshold=np.inf)
@@ -87,28 +83,126 @@ base_network = str(sys.argv[1])
 recognition_network = "MobileNet"
 
 # Load the Network.
-    ### create the network model for object recognition part
-network_dict = {
-    "resnet50": torchvision.models.resnet50(pretrained=True),
-    "resnet34": torchvision.models.resnet34(pretrained=True),
-    "densenet121": torchvision.models.densenet121(pretrained=True),
-    "densenet161": torchvision.models.densenet161(pretrained=True),
-    "densenet169": torchvision.models.densenet169(pretrained=True),
-}
-if (base_network in network_dict.keys()):
-    encoder = network_dict[base_network]
-else:
-    print("The selected network has not been implemented yet -- please choose another network!")
-    exit() 
+graph = tf.Graph()
+with graph.as_default():
+    # config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = tf.compat.v1.Session(config=config)
 
-def feature_find(x_r,encoder):
-    x_r = torch.unsqueeze(x_r, 0)
-    encoder.eval()
-    feature = encoder(x_r)
-    feature = torch.squeeze(feature, 0)
-    encoder.train()
-    return feature
+    # this is necessary for multi threading and client-server system
+    with session.as_default():
 
+        ### create the network model for object recognition part
+        if (base_network == "vgg16_fc1"):
+            vgg_model = vgg16.VGG16(weights='imagenet', include_top=True)
+            encoder = Model(inputs=vgg_model.input, outputs=vgg_model.get_layer('fc1').output)
+            #vgg_model._make_predict_function()
+            #plot_model(vgg_model, to_file='model.png')
+            # print(vgg_model.summary())
+
+        elif (base_network == "vgg16_fc2"):
+            vgg_model = vgg16.VGG16(weights='imagenet', include_top=True)
+            encoder = Model(inputs=vgg_model.input, outputs=vgg_model.get_layer('fc2').output)
+            #vgg_model._make_predict_function()
+            #plot_model(vgg_model, to_file='model.png')
+            # print(vgg_model.summary())
+
+        elif (base_network == "vgg19_fc1"):
+            vgg_model = vgg19.VGG19(weights='imagenet', include_top=True)
+            encoder = Model(inputs=vgg_model.input, outputs=vgg_model.get_layer('fc1').output)
+            #vgg_model._make_predict_function()
+            #plot_model(vgg_model, to_file='model.png')
+            # print(vgg_model.summary())
+
+        elif (base_network == "vgg19_fc2"):
+            vgg_model = vgg19.VGG19(weights='imagenet', include_top=True)
+            encoder = Model(inputs=vgg_model.input, outputs=vgg_model.get_layer('fc2').output)
+            #vgg_model._make_predict_function()
+            #plot_model(vgg_model, to_file='model.png')
+            # print(vgg_model.summary())
+
+        elif (base_network == "xception"):
+            xception_model = xception.Xception(weights='imagenet', include_top=True)
+            encoder = Model(inputs=xception_model.input, outputs=xception_model.get_layer('avg_pool').output)
+            #xception_model._make_predict_function()
+            #plot_model(xception_model, to_file='model.png')
+            # print(xception_model.summary())
+
+        elif (base_network == "resnet50"):
+            resnet_model = resnet50.ResNet50(weights='imagenet', include_top=True)
+            encoder = Model(inputs=resnet_model.input, outputs=resnet_model.get_layer('avg_pool').output)
+            #resnet_model._make_predict_function()
+            #plot_model(resnet_model, to_file='model.png')
+            # print(resnet_model.summary())
+
+        elif (base_network == "mobileNet"):
+            mobilenet_model = mobilenet.MobileNet(weights='imagenet', include_top=True)
+            encoder = Model(inputs=mobilenet_model.input, outputs=mobilenet_model.get_layer('global_average_pooling2d_1').output)
+            #mobilenet_model._make_predict_function()
+            #plot_model(mobilenet_model, to_file='model.png')
+            # print(mobilenet_model.summary())
+
+        elif (base_network == "mobileNetV2"):
+            mobilenet_model = mobilenet_v2.MobileNetV2(weights='imagenet', include_top=True)
+            encoder = Model(inputs=mobilenet_model.input, outputs=mobilenet_model.get_layer('global_average_pooling2d_1').output)
+            #mobilenet_model._make_predict_function()
+            #plot_model(mobilenet_model, to_file='model.png')
+            # print(mobilenet_model.summary())
+
+        elif (base_network == "denseNet121"):
+            densenet121_model = densenet.DenseNet121(weights='imagenet', include_top=True)
+            encoder = Model(inputs=densenet121_model.input, outputs=densenet121_model.get_layer('avg_pool').output)
+            #densenet121_model._make_predict_function()
+            #plot_model(densenet121_model_model, to_file='densenet121.png')
+            # print(densenet121_model.summary())
+
+        elif (base_network == "denseNet169"):
+            densenet169_model = densenet.DenseNet169(weights='imagenet', include_top=True)
+            encoder = Model(inputs=densenet169_model.input, outputs=densenet169_model.get_layer('avg_pool').output)
+            #densenet169_model._make_predict_function()
+            #plot_model(densenet169_model_model, to_file='densenet169.png')
+            # print(densenet169_model.summary())
+
+        elif (base_network == "denseNet201"):
+            densenet201_model = densenet.DenseNet201(weights='imagenet', include_top=True)
+            encoder = Model(inputs=densenet201_model.input, outputs=densenet201_model.get_layer('avg_pool').output)
+            #densenet201_model._make_predict_function()
+            #plot_model(densenet201_model_model, to_file='densenet201.png')
+            # print(densenet201_model.summary())
+            
+        elif (base_network == "nasnetLarge"):
+            nasnet_large_model = nasnet.NASNetLarge(weights='imagenet', include_top=True)
+            encoder = Model(inputs=nasnet_large_model.input, outputs=nasnet_large_model.get_layer('global_average_pooling2d_1').output)
+            #nasnet_large_model._make_predict_function()
+            #plot_model(nasnet_large_model, to_file='nasnet_large.png')
+            # print(nasnet_large_model.summary())
+            
+        elif (base_network == "nasnetMobile"):
+            nasnet_mobile_model = nasnet.NASNetMobile(weights='imagenet', include_top=True)
+            encoder = Model(inputs=nasnet_mobile_model.input, outputs=nasnet_mobile_model.get_layer('global_average_pooling2d_1').output)
+            #nasnet_mobile_model._make_predict_function()
+            # plot_model(nasnet_mobile_model, to_file='nasnet_mobile.png')
+            # print(nasnet_mobile_model.summary())
+            
+        elif (base_network == "inception"):
+            inception_model = inception_v3.InceptionV3(weights='imagenet', include_top=True)
+            encoder = Model(inputs=inception_model.input, outputs=inception_model.get_layer('avg_pool').output)
+            #inception_model._make_predict_function()
+            #plot_model(inception_model, to_file='model.png')
+            # print(inception_model.summary())
+
+        elif (base_network == "inceptionResnet"):
+            inception_resnet_model = inception_resnet_v2.InceptionResNetV2(weights='imagenet', include_top=True)
+            encoder = Model(inputs=inception_resnet_model.input, outputs=inception_resnet_model.get_layer('avg_pool').output)
+            #inception_resnet_model._make_predict_function()
+            #plot_model(inception_resnet_model, to_file='model.png')
+            # print(inception_resnet_model.summary())     
+        else:
+            print("The selected network has not been implemented yet -- please choose another network!")
+            exit() 
+
+              
 
 tmp_img = 0
 
@@ -167,14 +261,6 @@ def handle_deep_representation(req):
     tic = time.clock()
     tic_global = time.clock()
 
-    preprocess = T.Compose([
-        T.ToTensor(),
-        T.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
-
     ### deep feature vector of orthographic projections
     for i in range(0, number_of_views):
         
@@ -185,28 +271,28 @@ def handle_deep_representation(req):
 
         resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
 
-        image_size = 224
-        resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
+        with graph.as_default():
+            with session.as_default():
+                ## We represent each image as a feature vector
+                ##TODO: image_size should be a param, some networks accept 300*300 input image
+                image_size = 224
+                resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
 
-        img_g = cv2.merge((othographic_image, othographic_image, othographic_image))
-        x_r = np.asarray(img_g)
-        # x_r = np.expand_dims(x_r, axis=0)
-        # print(x_r.shape)
-        # exit()
-        x_r = preprocess(x_r)
-        feature = feature_find(x_r=x_r, encoder=encoder)
+                img_g = cv2.merge((othographic_image, othographic_image, othographic_image))
+                x_r = image.img_to_array(img_g)
+                x_r = np.expand_dims(x_r, axis=0)
+                x_r = preprocess_input(x_r)
+                feature = encoder.predict(x_r)          
                 
         # pooling functions
-        feature = torch.tensor(feature)
         if (i == 0):
-            global_object_representation = torch.tensor(feature)
+            global_object_representation = feature            
         elif (pooling_function == "MAX"):
-            global_object_representation = torch.max(torch.tensor(global_object_representation), feature)
+            global_object_representation = np.max([global_object_representation, feature], axis=0)
         elif (pooling_function == "AVG"):
-            global_object_representation = torch.average([global_object_representation, feature], axis=0)
+            global_object_representation = np.average([global_object_representation, feature], axis=0)
         elif (pooling_function == "APP"):
-            global_object_representation = torch.append(global_object_representation, feature, axis=1)
-        
+            global_object_representation = np.append(global_object_representation, feature, axis=1)
 
 
     ### deep feature vector of rgb and depth imgaes
@@ -229,40 +315,37 @@ def handle_deep_representation(req):
             cv2.waitKey(1)
 
         #### encode RGB image
-        # with graph.as_default():
-        #     with session.as_default():    
-        x_rgb = np.array(resized_rgb_img)
-        # x_rgb = np.expand_dims(x_rgb, axis=0)
-        # x_rgb = Image.fromarray(x_rgb)
-        x_rgb = preprocess(x_rgb)
-        feature = feature_find(x_r=x_rgb, encoder=encoder)
+        with graph.as_default():
+            with session.as_default():    
+                x_rgb = image.img_to_array(resized_rgb_img)
+                x_rgb = np.expand_dims(x_rgb, axis=0)
+                x_rgb = preprocess_input(x_rgb)
+                feature = encoder.predict(x_rgb)
             
         # pooling functions # size of feature can be check first and then do this part
         if (pooling_function == "MAX"):
-            # global_object_representation = torch.max([global_object_representation, feature], axis=0)
-
-            global_object_representation = torch.max(torch.tensor(global_object_representation), feature)
+            global_object_representation = np.max([global_object_representation, feature], axis=0)
         elif (pooling_function == "AVG"):
-            global_object_representation = torch.average([global_object_representation, feature], axis=0)
+            global_object_representation = np.average([global_object_representation, feature], axis=0)
         elif (pooling_function == "APP"):
-            global_object_representation = torch.append(global_object_representation, feature, axis=1)
+            global_object_representation = np.append(global_object_representation, feature, axis=1)
 
         #### encode Depth image
-        x_depth = np.array(resized_depth_img)
-        # x_depth = np.expand_dims(x_depth, axis=0)
-        x_depth = preprocess(x_depth)
-        feature = feature_find(x_r=x_depth, encoder=encoder)
+        with graph.as_default():
+            with session.as_default():          
+                x_depth = image.img_to_array(resized_depth_img)
+                x_depth = np.expand_dims(x_depth, axis=0)
+                x_depth = preprocess_input(x_depth)
+                feature = encoder.predict(x_depth)
             
         # pooling functions # size of feature can be check first and then do this part
         if (pooling_function == "MAX"):
-            # global_object_representation = torch.max([global_object_representation, feature], axis=0)
-
-            global_object_representation = torch.max(torch.tensor(global_object_representation), feature)
+            global_object_representation = np.max([global_object_representation, feature], axis=0)
         elif (pooling_function == "AVG"):
-            global_object_representation = torch.average([global_object_representation, feature], axis=0)
+            global_object_representation = np.average([global_object_representation, feature], axis=0)
         elif (pooling_function == "APP"):
-            global_object_representation = torch.append(global_object_representation, feature, axis=1)
-        
+            global_object_representation = np.append(global_object_representation, feature, axis=1)
+
     except CvBridgeError as e:
         print(e)
         print ("error visualize image")
@@ -272,14 +355,13 @@ def handle_deep_representation(req):
     # print ("\t - size of representation is "+ str(global_object_representation.shape))
     # print ("\t - deep object representation took " + str (toc_global - tic_global))
     # print ("----------------------------------------------------------")            
-    # print(np.array(global_object_representation)
-    return deep_representationResponse(global_object_representation.detach().numpy())
+    return deep_representationResponse(global_object_representation[0])
 
 
 def RGBD_multiview_service():
     rospy.init_node('deep_learning_representation_server')
     s = rospy.Service('RGBD_multiview_service', deep_representation, handle_deep_representation)
-    print("Ready to representas RGBD object based on " + base_network + " network.")
+    print "Ready to representas RGBD object based on " + base_network + " network."
     rospy.spin()
 
 if __name__ == "__main__":
