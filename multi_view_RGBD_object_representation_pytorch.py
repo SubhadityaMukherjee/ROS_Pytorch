@@ -5,13 +5,6 @@
 #|           IMPORTS               |
 #|_________________________________|
 
-'''
-#TODO
-- change all the pooling to torch style
-- add the rest of the models 
-- add more models
-'''
-
 ### general
 import roslib; #roslib.load_manifest('rug_deep_feature_extraction')
 import rospy
@@ -90,14 +83,15 @@ recognition_network = "MobileNet"
     ### create the network model for object recognition part
 # Network names might be a bit different
 network_dict = {
-    "resnet50": torchvision.models.resnet50(pretrained=True),
-    "resnet34": torchvision.models.resnet34(pretrained=True),
-    "densenet121": torchvision.models.densenet121(pretrained=True),
-    "densenet161": torchvision.models.densenet161(pretrained=True),
-    "densenet169": torchvision.models.densenet169(pretrained=True),
+    "resnet50": torchvision.models.resnet50,
+    "resnet34": torchvision.models.resnet34,
+    "densenet121": torchvision.models.densenet121,
+    "densenet161": torchvision.models.densenet161,
+    "densenet169": torchvision.models.densenet169,
 }
 if (base_network in network_dict.keys()):
-    encoder = network_dict[base_network]
+    encoder = network_dict[base_network](pretrained=True)
+
 else:
     print("The selected network has not been implemented yet -- please choose another network!")
     exit() 
