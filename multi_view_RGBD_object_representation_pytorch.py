@@ -81,9 +81,17 @@ recognition_network = "MobileNet"
 
 # Load the Network.
     ### create the network model for object recognition part
-if (base_network == "resnet50"):
-    vgg_model = torchvision.models.resnet50(pretrained=True)
-    encoder = vgg_model
+# Network names might be a bit different
+network_dict = {
+    "resnet50": torchvision.models.resnet50,
+    "resnet34": torchvision.models.resnet34,
+    "densenet121": torchvision.models.densenet121,
+    "densenet161": torchvision.models.densenet161,
+    "densenet169": torchvision.models.densenet169,
+}
+if (base_network in network_dict.keys()):
+    encoder = network_dict[base_network](pretrained=True)
+
 else:
     print("The selected network has not been implemented yet -- please choose another network!")
     exit() 
