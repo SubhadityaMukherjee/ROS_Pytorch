@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-# from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge, CvBridgeError
 
 import torch.optim as optim
 import torch
@@ -83,7 +83,7 @@ recognition_network = "MobileNet"
     ### create the network model for object recognition part
 if (base_network == "resnet50"):
     vgg_model = torchvision.models.resnet50(pretrained=True)
-    encoder = vgg_model.fc
+    encoder = vgg_model
 else:
     print("The selected network has not been implemented yet -- please choose another network!")
     exit() 
@@ -147,8 +147,6 @@ def handle_deep_representation(req):
     tic_global = time.clock()
 
     preprocess = T.Compose([
-        T.Resize(256),
-        T.CenterCrop(224),
         T.ToTensor(),
         T.Normalize(
             mean=[0.485, 0.456, 0.406],
@@ -171,9 +169,15 @@ def handle_deep_representation(req):
 
         img_g = cv2.merge((othographic_image, othographic_image, othographic_image))
         x_r = np.asarray(img_g)
-        x_r = np.expand_dims(x_r, axis=0)
+        # x_r = np.expand_dims(x_r, axis=0)
+        # print(x_r.shape)
+        # exit()
         x_r = preprocess(x_r)
-        feature = encoder.predict(x_r)          
+        x_r = torch.unsqueeze(x_r, 0)
+        encoder.eval()
+        feature = encoder(x_r).squeeze(0)
+        encoder.train()
+        print(feature.shape)
                 
         # pooling functions
         if (i == 0):
@@ -210,6 +214,7 @@ def handle_deep_representation(req):
         #     with session.as_default():    
         x_rgb = np.array(resized_rgb_img)
         x_rgb = np.expand_dims(x_rgb, axis=0)
+        x_rgb = Image.fromarray(x_rgb)
         x_rgb = preprocess(x_rgb)
         feature = encoder.predict(x_rgb)
             
@@ -224,6 +229,7 @@ def handle_deep_representation(req):
         #### encode Depth image
         x_depth = np.array(resized_depth_img)
         x_depth = np.expand_dims(x_depth, axis=0)
+        x_depth = Image.fromarray(x_depth)
         x_depth = preprocess(x_depth)
         feature = encoder.predict(x_depth)
             
