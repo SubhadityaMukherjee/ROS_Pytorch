@@ -88,6 +88,7 @@ recognition_network = "MobileNet"
 
 # Load the Network.
     ### create the network model for object recognition part
+# Network names might be a bit different
 network_dict = {
     "resnet50": torchvision.models.resnet50(pretrained=True),
     "resnet34": torchvision.models.resnet34(pretrained=True),
