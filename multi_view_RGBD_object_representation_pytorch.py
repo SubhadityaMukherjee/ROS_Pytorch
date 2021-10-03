@@ -95,6 +95,12 @@ network_dict = {
     "densenet121": torchvision.models.densenet121(pretrained=True),
     "densenet161": torchvision.models.densenet161(pretrained=True),
     "densenet169": torchvision.models.densenet169(pretrained=True),
+    "desnsenet201":torchvision.models.densenet201(pretrained=True),
+    "googlenet":torchvision.models.googlenet(pretrained=True),
+    "inception":torchvision.models.inception_v3(pretrained=True),
+    "resnet101":torchvision.models.resnet101(pretrained=True),
+    "resnet152":torchvision.models.resnet152(pretrained=True),
+    "vgg16":torchvision.models.vgg16(pretrained=True),
 }
 if (base_network in network_dict.keys()):
     encoder = network_dict[base_network]
