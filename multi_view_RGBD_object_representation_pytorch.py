@@ -5,13 +5,6 @@
 #|           IMPORTS               |
 #|_________________________________|
 
-'''
-#TODO
-- change all the pooling to torch style
-- add the rest of the models 
-- add more models
-'''
-
 ### general
 import roslib; #roslib.load_manifest('rug_deep_feature_extraction')
 import rospy
@@ -103,7 +96,8 @@ network_dict = {
     "vgg16":torchvision.models.vgg16(pretrained=True),
 }
 if (base_network in network_dict.keys()):
-    encoder = network_dict[base_network]
+    encoder = network_dict[base_network](pretrained=True)
+
 else:
     print("The selected network has not been implemented yet -- please choose another network!")
     exit() 
