@@ -1,9 +1,13 @@
 # Pytorch ROS
 
+# Whats there here
+- Main code converted to Pytorch
+- Runner for DL and HC code
+
 ## Comparison of runtime in seconds
-| Model | Tensorflow | Pytorch |
-| resnet50 | 0.09365 | 0.002186 |
-| densenet121 | 0.002448 | 0.0008168 |
+- | Model | Tensorflow | Pytorch |
+- | resnet50 | 0.09365 | 0.002186 |
+- | densenet121 | 0.002448 | 0.0008168 |
 
 ## Commands to be run in separate terminals
 
@@ -21,5 +25,12 @@ roslaunch rug_kfold_cross_validation kfold_cross_validation_RGBD_deep_learning_d
 ## Notes for the Keras code
 - enabling tf.config.optimizer.set_jit(True) makes it a bit faster
 - disable all outputs and replacing them with tqdm is also a bit more convinient
-- give Prof proper experiment runner file for next year
+
+## Pytorch code
+- faster
+- easy to add anything else
+
+## Future scope
+- FP16
+- Batch load images instead maybe?
 

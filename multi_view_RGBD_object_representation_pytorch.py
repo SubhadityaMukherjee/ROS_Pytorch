@@ -82,6 +82,8 @@ recognition_network = "MobileNet"
 # Load the Network.
     ### create the network model for object recognition part
 # Network names might be a bit different
+
+image_size = 224
 network_dict = {
     "resnet50": torchvision.models.resnet50(pretrained=True),
     "resnet34": torchvision.models.resnet34(pretrained=True),
@@ -97,6 +99,9 @@ network_dict = {
 }
 if (base_network in network_dict.keys()):
     encoder = network_dict[base_network](pretrained=True)
+# different_sizes = {
+#     "inception": 
+# }
 
 else:
     print("The selected network has not been implemented yet -- please choose another network!")
@@ -114,6 +119,8 @@ def feature_find(x_r,encoder):
 tmp_img = 0
 
 def handle_deep_representation(req):
+
+    global image_size
 
     #__________________________
     #|                         |
@@ -158,7 +165,6 @@ def handle_deep_representation(req):
     number_of_views = int(len(req.good_representation) / (number_of_bins*number_of_bins))
     # print ("\t - number_of_views = " + str(number_of_views))
                 
-    image_size = 224
     #normalization 
     #The mean pixel values are taken from the VGG authors, 
     # which are the values computed from the training dataset.
@@ -186,7 +192,6 @@ def handle_deep_representation(req):
 
         resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
 
-        image_size = 224
         resized_img, othographic_image = preprocessingForOrthographicImages(img, image_size)
 
         img_g = cv2.merge((othographic_image, othographic_image, othographic_image))
